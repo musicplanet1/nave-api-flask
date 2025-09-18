@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 
-# ⚠️ Token temporal (en producción usar client_id y secret para renovarlo)
+# ⚠️ Token temporal (24hs). En producción usar client_id/secret para renovarlo
 NAVE_TOKEN = os.getenv("NAVE_TOKEN", "TU_TOKEN_AQUI")
 
 @app.route("/")
@@ -53,12 +53,13 @@ def start_payment(order_id):
         }
     }
 
-headers = {
-    "Authorization": f"Token {NAVE_TOKEN}",
-    "Content-Type": "application/json"
-}
+    headers = {
+        # 🔧 CAMBIO AQUÍ → Nave pide Token, no Bearer
+        "Authorization": f"Token {NAVE_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
-url = "https://api.ranty.io/ecommerce/payment_request/external"
+    url = "https://api.ranty.io/ecommerce/payment_request/external"
     response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
