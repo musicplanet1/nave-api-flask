@@ -53,12 +53,12 @@ def start_payment(order_id):
         }
     }
 
-    headers = {
-        "Authorization": f"Bearer {NAVE_TOKEN}",
-        "Content-Type": "application/json"
-    }
+headers = {
+    "Authorization": f"Token {NAVE_TOKEN}",
+    "Content-Type": "application/json"
+}
 
-    url = "https://api.ranty.io/ecommerce/payment_request/external"
+url = "https://api.ranty.io/ecommerce/payment_request/external"
     response = requests.post(url, headers=headers, json=payload)
 
     if response.status_code == 200:
