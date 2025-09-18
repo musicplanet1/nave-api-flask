@@ -1,49 +1,29 @@
-from flask import Flask, request, redirect, jsonify
+from flask import Flask, request, jsonify, redirect
 import requests
 import os
 
 app = Flask(__name__)
 
-# ⚠️ Token temporal (24hs). En producción usar client_id/secret para renovarlo
-NAVE_TOKEN = os.getenv("NAVE_TOKEN", "TU_TOKEN_AQUI")
+# Cargamos el token desde variables de entorno (Render -> Environment)
+NAVE_TOKEN = os.getenv("NAVE_TOKEN", "DEV_TOKEN_AQUI")
 
 
 @app.route("/")
-def index():
-    return "✅ Nave API Flask está corriendo"
+def home():
+    return "Nave API Flask corriendo ✅"
 
 
-# Crear intención de pago y redirigir al checkout Nave
+# Crear intención de pago
 @app.route("/payment/nave/start/<order_id>", methods=["GET"])
 def start_payment(order_id):
     payload = {
-        "platform": "odoo18_online",
-        "store_id": "store_odoo",
-        "callback_url": "https://nave-api-flask.onrender.com/payment/nave/callback",
-        "order_id": order_id,
-        "mobile": False,
-        "payment_request": {
-            "transactions": [
-                {
-                    "products": [
-                        {
-                            "id": "SKU123",
-                            "name": "Producto Test",
-                            "description": "Demo online",
-                            "quantity": 1,
-                            "unit_price": {"currency": "ARS", "value": "1500.00"}
-                        }
-                    ],
-                    "amount": {"currency": "ARS", "value": "1500.00"}
-                }
-            ]
-        },
+        "external_id": order_id,
+        "amount": 1000,
+        "currency": "ARS",
+        "description": "Compra de prueba",
         "buyer": {
-            "user_id": "cliente@email.com",
-            "doc_type": "DNI",
-            "doc_number": "12345678",
-            "user_email": "cliente@email.com",
-            "name": "Juan Perez",
+            "name": "Cliente Test",
+            "email": "cliente@test.com",
             "phone": "1123456789",
             "billing_address": {
                 "street_1": "Calle Falsa 123",
@@ -56,8 +36,8 @@ def start_payment(order_id):
     }
 
     headers = {
-        # 🔧 Nave usa Token, no Bearer
-        "Authorization": f"Token {NAVE_TOKEN}",
+        # Probamos solo el token plano
+        "Authorization": NAVE_TOKEN,
         "Content-Type": "application/json"
     }
 
@@ -82,10 +62,25 @@ def start_payment(order_id):
 @app.route("/payment/nave/callback", methods=["POST"])
 def nave_callback():
     data = request.json
-    print("📩 Notificación Nave:", data)
-    # Aquí podrías actualizar la orden en Odoo via API
-    return jsonify({"received": True}), 200
+    # Acá deberías validar la firma/token que manda Nave en el callback
+    return jsonify({"received": data}), 200
+
+
+# Endpoint de debug para probar la conexión con Nave
+@app.route("/test/nave", methods=["GET"])
+def test_nave():
+    headers = {
+        "Authorization": NAVE_TOKEN,  # token plano
+        "Content-Type": "application/json"
+    }
+    url = "https://api.ranty.io/ecommerce/payment_request/external"
+    response = requests.post(url, headers=headers, json={})
+    return {
+        "status_code": response.status_code,
+        "headers_sent": headers,
+        "response_text": response.text
+    }
 
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
