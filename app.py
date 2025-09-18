@@ -7,9 +7,11 @@ app = Flask(__name__)
 # ⚠️ Token temporal (24hs). En producción usar client_id/secret para renovarlo
 NAVE_TOKEN = os.getenv("NAVE_TOKEN", "TU_TOKEN_AQUI")
 
+
 @app.route("/")
 def index():
     return "✅ Nave API Flask está corriendo"
+
 
 # Crear intención de pago y redirigir al checkout Nave
 @app.route("/payment/nave/start/<order_id>", methods=["GET"])
@@ -17,7 +19,7 @@ def start_payment(order_id):
     payload = {
         "platform": "odoo18_online",
         "store_id": "store_odoo",
-        "callback_url": "https://mi-nave-service.onrender.com/payment/nave/callback",
+        "callback_url": "https://nave-api-flask.onrender.com/payment/nave/callback",
         "order_id": order_id,
         "mobile": False,
         "payment_request": {
@@ -54,7 +56,7 @@ def start_payment(order_id):
     }
 
     headers = {
-        # 🔧 CAMBIO AQUÍ → Nave pide Token, no Bearer
+        # 🔧 Nave usa Token, no Bearer
         "Authorization": f"Token {NAVE_TOKEN}",
         "Content-Type": "application/json"
     }
@@ -75,6 +77,7 @@ def start_payment(order_id):
             "detail": response.text
         }), 500
 
+
 # Callback Nave → confirma pago
 @app.route("/payment/nave/callback", methods=["POST"])
 def nave_callback():
@@ -82,6 +85,7 @@ def nave_callback():
     print("📩 Notificación Nave:", data)
     # Aquí podrías actualizar la orden en Odoo via API
     return jsonify({"received": True}), 200
+
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
