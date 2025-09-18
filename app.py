@@ -1,29 +1,31 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, jsonify, redirect, request
 import requests
 import os
 
 app = Flask(__name__)
 
-# Cargamos el token desde variables de entorno (Render -> Environment)
-NAVE_TOKEN = os.getenv("NAVE_TOKEN", "DEV_TOKEN_AQUI")
-
-
+# 🔹 Página de prueba para saber si el servicio corre
 @app.route("/")
 def home():
-    return "Nave API Flask corriendo ✅"
+    return "✅ Nave API Flask corriendo en Render"
 
+# 🔹 Endpoint para testear integración
+@app.route("/test/nave")
+def test_nave():
+    return jsonify({"status": "ok", "message": "API lista para Nave"})
 
-# Crear intención de pago
+# 🔹 Endpoint simulado para iniciar pago
 @app.route("/payment/nave/start/<order_id>", methods=["GET"])
 def start_payment(order_id):
+    NAVE_TOKEN = os.getenv("NAVE_TOKEN", "REEMPLAZA_CON_TU_TOKEN")
+
     payload = {
         "external_id": order_id,
-        "amount": 1000,
+        "amount": 100.0,
         "currency": "ARS",
-        "description": "Compra de prueba",
         "buyer": {
             "name": "Cliente Test",
-            "email": "cliente@test.com",
+            "email": "test@cliente.com",
             "phone": "1123456789",
             "billing_address": {
                 "street_1": "Calle Falsa 123",
@@ -36,50 +38,30 @@ def start_payment(order_id):
     }
 
     headers = {
-        # Probamos solo el token plano
-        "Authorization": NAVE_TOKEN,
+        "Authorization": f"Token {NAVE_TOKEN}",
         "Content-Type": "application/json"
     }
 
     url = "https://api.ranty.io/ecommerce/payment_request/external"
-    response = requests.post(url, headers=headers, json=payload)
 
-    if response.status_code == 200:
-        data = response.json()
-        if data.get("success"):
-            return redirect(data["data"]["checkout_url"])
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("success"):
+                return redirect(data["data"]["checkout_url"])
+            else:
+                return jsonify({"error": "Falló la intención", "detail": data}), 400
         else:
-            return jsonify({"error": "Fallo al crear intención", "detail": data}), 400
-    else:
-        return jsonify({
-            "error": "Error HTTP",
-            "status": response.status_code,
-            "detail": response.text
-        }), 500
+            return jsonify({
+                "error": "Error HTTP",
+                "status": response.status_code,
+                "detail": response.text
+            }), response.status_code
 
-
-# Callback Nave → confirma pago
-@app.route("/payment/nave/callback", methods=["POST"])
-def nave_callback():
-    data = request.json
-    # Acá deberías validar la firma/token que manda Nave en el callback
-    return jsonify({"received": data}), 200
-
-
-# Endpoint de debug para probar la conexión con Nave
-@app.route("/test/nave", methods=["GET"])
-def test_nave():
-    headers = {
-        "Authorization": NAVE_TOKEN,  # token plano
-        "Content-Type": "application/json"
-    }
-    url = "https://api.ranty.io/ecommerce/payment_request/external"
-    response = requests.post(url, headers=headers, json={})
-    return {
-        "status_code": response.status_code,
-        "headers_sent": headers,
-        "response_text": response.text
-    }
+    except Exception as e:
+        return jsonify({"error": "Excepción en servidor", "detail": str(e)}), 500
 
 
 if __name__ == "__main__":
